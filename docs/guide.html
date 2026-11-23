@@ -1,0 +1,361 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<title>OpenVPN для Teltonika RUT950 — полная инструкция</title>
+<style>
+  @page { size: A4; margin: 16mm 16mm 18mm 16mm; }
+  :root { --accent: #0b5cad; --muted: #5b6470; --line: #d5dbe3; --soft: #f2f5f9; --warn: #b45309; --warnbg: #fff7e8; --ok: #146c43; --okbg: #ecf8f1; }
+  * { box-sizing: border-box; }
+  html { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  body { font-family: "Segoe UI", Arial, sans-serif; font-size: 10.5pt; line-height: 1.45; color: #1d232b; margin: 0; background: #fff; }
+  h1 { font-size: 24pt; margin: 0 0 6px; color: var(--accent); line-height: 1.15; }
+  h2 { font-size: 15pt; color: var(--accent); margin: 22px 0 8px; padding-bottom: 4px; border-bottom: 2px solid var(--accent); page-break-after: avoid; }
+  h3 { font-size: 11.5pt; margin: 14px 0 6px; page-break-after: avoid; }
+  p { margin: 6px 0; }
+  ul, ol { margin: 6px 0; padding-left: 22px; }
+  li { margin: 2px 0; }
+  code { font-family: Consolas, "Courier New", monospace; font-size: 9.5pt; background: var(--soft); padding: 0 3px; border-radius: 3px; }
+  pre { font-family: Consolas, "Courier New", monospace; font-size: 9pt; background: #1f2430; color: #e6e9ef; padding: 8px 10px; border-radius: 5px; white-space: pre-wrap; word-break: break-all; margin: 6px 0; page-break-inside: avoid; }
+  pre .c { color: #8b95a7; }
+  table { width: 100%; border-collapse: collapse; margin: 8px 0; font-size: 9.5pt; page-break-inside: avoid; }
+  th, td { border: 1px solid var(--line); padding: 4px 7px; text-align: left; vertical-align: top; }
+  th { background: var(--soft); }
+  td code { white-space: nowrap; }
+  .box { border-left: 4px solid var(--accent); background: var(--soft); padding: 7px 11px; margin: 8px 0; border-radius: 0 5px 5px 0; page-break-inside: avoid; }
+  .warn { border-color: var(--warn); background: var(--warnbg); }
+  .ok { border-color: var(--ok); background: var(--okbg); }
+  .box b:first-child { display: block; margin-bottom: 2px; }
+  .cover { height: 255mm; display: flex; flex-direction: column; justify-content: space-between; page-break-after: always; }
+  .cover .sub { font-size: 13pt; color: var(--muted); margin-bottom: 26px; }
+  .meta { color: var(--muted); font-size: 9.5pt; }
+  .toc { columns: 1; font-size: 10.5pt; }
+  .toc li { margin: 3px 0; }
+  .step { display: inline-block; background: var(--accent); color: #fff; border-radius: 4px; padding: 0 7px; font-size: 10pt; margin-right: 6px; vertical-align: 2px; }
+  .pb { page-break-before: always; }
+  .check li { list-style: none; margin-left: -18px; }
+  .check li::before { content: "☐ "; font-size: 12pt; }
+  svg text { font-family: "Segoe UI", Arial, sans-serif; }
+  .path { font-weight: 600; color: var(--accent); }
+</style>
+</head>
+<body>
+
+<!-- ============================== COVER ============================== -->
+<section class="cover">
+  <div>
+    <div class="meta">rut950-openvpn · инструкция v1.0 · ноябрь 2026</div>
+    <h1 style="margin-top:40mm">Удалённый доступ к устройству<br>за роутером Teltonika RUT950<br>через собственный OpenVPN-сервер</h1>
+    <div class="sub">Полная инструкция: развёртывание сервера на VPS, настройка RUT950, подключение компьютера и диагностика</div>
+
+    <svg viewBox="0 0 700 210" width="100%" xmlns="http://www.w3.org/2000/svg">
+      <defs><marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#0b5cad"/></marker></defs>
+      <rect x="5" y="40" width="140" height="70" rx="8" fill="#f2f5f9" stroke="#0b5cad"/>
+      <text x="75" y="68" text-anchor="middle" font-size="14" font-weight="600">Ваш ПК / телефон</text>
+      <text x="75" y="90" text-anchor="middle" font-size="12" fill="#5b6470">VPN: 10.8.0.3</text>
+
+      <rect x="255" y="40" width="170" height="70" rx="8" fill="#0b5cad"/>
+      <text x="340" y="68" text-anchor="middle" font-size="14" font-weight="600" fill="#fff">VPS (белый IP)</text>
+      <text x="340" y="90" text-anchor="middle" font-size="12" fill="#dbe7f5">OpenVPN-сервер 10.8.0.1</text>
+
+      <rect x="535" y="10" width="160" height="70" rx="8" fill="#f2f5f9" stroke="#0b5cad"/>
+      <text x="615" y="38" text-anchor="middle" font-size="14" font-weight="600">RUT950 (SIM)</text>
+      <text x="615" y="58" text-anchor="middle" font-size="12" fill="#5b6470">VPN 10.8.0.2</text>
+      <text x="615" y="73" text-anchor="middle" font-size="12" fill="#5b6470">LAN 192.168.50.1</text>
+
+      <rect x="535" y="130" width="160" height="60" rx="8" fill="#fff" stroke="#5b6470" stroke-dasharray="4 3"/>
+      <text x="615" y="156" text-anchor="middle" font-size="14" font-weight="600">Устройство</text>
+      <text x="615" y="175" text-anchor="middle" font-size="12" fill="#5b6470">192.168.50.100</text>
+
+      <line x1="145" y1="75" x2="253" y2="75" stroke="#0b5cad" stroke-width="2" marker-end="url(#a)"/>
+      <text x="199" y="66" text-anchor="middle" font-size="11" fill="#5b6470">туннель</text>
+      <line x1="533" y1="48" x2="427" y2="68" stroke="#0b5cad" stroke-width="2" marker-end="url(#a)"/>
+      <text x="480" y="46" text-anchor="middle" font-size="11" fill="#5b6470">туннель</text>
+      <line x1="615" y1="80" x2="615" y2="128" stroke="#5b6470" stroke-width="2"/>
+      <text x="625" y="108" font-size="11" fill="#5b6470">LAN-кабель</text>
+      <text x="300" y="160" text-anchor="middle" font-size="12" fill="#146c43" font-weight="600">ping 192.168.50.100  →  ответ от устройства</text>
+    </svg>
+  </div>
+  <div class="meta">Подходит также для RUT240, RUT241, RUT955, RUT360, RUTX и других роутеров на RutOS.<br>Сервер: Ubuntu 22.04+ / Debian 11+.</div>
+</section>
+
+<!-- ============================== TOC ============================== -->
+<h2 style="margin-top:0">Содержание</h2>
+<ol class="toc">
+  <li>Как это работает</li>
+  <li>Что понадобится</li>
+  <li>Шаг 1. Аренда и подготовка VPS</li>
+  <li>Шаг 2. Установка OpenVPN-сервера</li>
+  <li>Шаг 3. Подготовка RUT950 (прошивка, LAN-подсеть)</li>
+  <li>Шаг 4. Создание сертификата для роутера</li>
+  <li>Шаг 5. Перенос файлов на компьютер</li>
+  <li>Шаг 6. Настройка OpenVPN-клиента на RUT950</li>
+  <li>Шаг 7. Firewall на RUT950</li>
+  <li>Шаг 8. Подключение вашего компьютера</li>
+  <li>Шаг 9. Проверка доступа к устройству</li>
+  <li>Управление: клиенты, отзыв, несколько роутеров</li>
+  <li>Диагностика и частые проблемы</li>
+  <li>Безопасность</li>
+  <li>Чек-лист</li>
+</ol>
+
+<h2>1. Как это работает</h2>
+<p>Роутер на мобильном интернете почти всегда получает «серый» IP-адрес от оператора: подключиться к нему из интернета напрямую нельзя. Поэтому используется <b>промежуточный сервер (VPS) с белым IP</b>:</p>
+<ol>
+  <li>На VPS работает OpenVPN-сервер.</li>
+  <li>RUT950 сам подключается к серверу как VPN-клиент и сообщает серверу свою локальную подсеть (например <code>192.168.50.0/24</code>).</li>
+  <li>Ваш компьютер тоже подключается к серверу и автоматически получает маршрут до этой подсети.</li>
+  <li>Вы обращаетесь к устройству за роутером по его <b>локальному IP</b> — как будто находитесь рядом.</li>
+</ol>
+<p>Технически: на сервере для роутера создаётся файл <code>ccd/&lt;имя&gt;</code> с директивой <code>iroute</code>, в конфиг сервера добавляются <code>route</code> и <code>push "route …"</code>, а <code>client-to-client</code> позволяет клиентам видеть друг друга. Всё это делает скрипт автоматически.</p>
+
+<h2>2. Что понадобится</h2>
+<table>
+  <tr><th style="width:28%">Что</th><th>Требования</th></tr>
+  <tr><td>VPS-сервер</td><td>Любой хостер, 1 vCPU / 512 МБ RAM достаточно. <b>Белый IPv4</b>. ОС: <b>Ubuntu 22.04/24.04</b> или <b>Debian 11/12</b>. Доступ root по SSH.</td></tr>
+  <tr><td>Роутер</td><td>Teltonika RUT950 с рабочим интернетом (SIM или WAN), доступ к веб-интерфейсу (по умолчанию <code>https://192.168.1.1</code>).</td></tr>
+  <tr><td>Компьютер</td><td>Windows / macOS / Linux с SSH-клиентом (в Windows 10/11 встроен) и программой OpenVPN Connect или OpenVPN GUI.</td></tr>
+  <tr><td>Проект</td><td>Скрипт <code>openvpn-rut.sh</code> из репозитория <code>rut950-openvpn</code>.</td></tr>
+</table>
+
+<div class="box"><b>Условные адреса в инструкции</b>
+VPS: <code>203.0.113.10</code> · VPN-сеть: <code>10.8.0.0/24</code> · LAN роутера: <code>192.168.50.0/24</code> · роутер в LAN: <code>192.168.50.1</code> · устройство: <code>192.168.50.100</code>. Подставляйте свои значения.</div>
+
+<!-- ============================== STEP 1 ============================== -->
+<h2><span class="step">1</span>Аренда и подготовка VPS</h2>
+<ol>
+  <li>Арендуйте VPS с Ubuntu 22.04+ или Debian 11+. Запишите IP-адрес и пароль root (или SSH-ключ).</li>
+  <li>Если у хостера есть <b>облачный firewall / группы безопасности</b> — разрешите входящий трафик на <b>UDP 1194</b> (и TCP 22 для SSH).</li>
+  <li>Подключитесь к серверу с компьютера (PowerShell / Терминал):</li>
+</ol>
+<pre>ssh root@203.0.113.10</pre>
+<ol start="4">
+  <li>Обновите систему и установите git:</li>
+</ol>
+<pre>apt update &amp;&amp; apt upgrade -y
+apt install -y git</pre>
+
+<!-- ============================== STEP 2 ============================== -->
+<h2><span class="step">2</span>Установка OpenVPN-сервера</h2>
+<h3>2.1. Скачайте проект</h3>
+<pre>git clone https://github.com/pptkaa-del/rut950-openvpn.git
+cd rut950-openvpn
+chmod +x openvpn-rut.sh</pre>
+<div class="box"><b>Без git</b>Можно скопировать файл с компьютера: <code>scp openvpn-rut.sh root@203.0.113.10:/root/</code>, затем на сервере <code>chmod +x /root/openvpn-rut.sh</code>.</div>
+
+<h3>2.2. Запустите установку</h3>
+<pre>sudo ./openvpn-rut.sh install</pre>
+<p>Скрипт установит OpenVPN и Easy-RSA, создаст центр сертификации и ключи сервера, определит внешний IP, включит IP-форвардинг, откроет порт и запустит службу <code>openvpn-server@server</code> с автозапуском.</p>
+
+<p>Дополнительные параметры (необязательно):</p>
+<table>
+  <tr><th style="width:22%">Параметр</th><th style="width:22%">По умолчанию</th><th>Когда менять</th></tr>
+  <tr><td><code>--port</code></td><td>1194</td><td>Если порт занят или блокируется — например 443.</td></tr>
+  <tr><td><code>--proto</code></td><td>udp</td><td><code>tcp</code> — если мобильный оператор режет UDP (медленнее, но надёжнее).</td></tr>
+  <tr><td><code>--endpoint</code></td><td>авто</td><td>Если у сервера есть домен (<code>vpn.example.com</code>) или IP определился неверно.</td></tr>
+  <tr><td><code>--vpn-net</code></td><td>10.8.0.0</td><td>Если 10.8.0.0/24 уже используется в ваших сетях.</td></tr>
+</table>
+<pre><span class="c"># пример: TCP на порту 443 с доменом</span>
+sudo ./openvpn-rut.sh install --proto tcp --port 443 --endpoint vpn.example.com</pre>
+
+<h3>2.3. Если на сервере уже работает WireGuard (или другой VPN)</h3>
+<p>OpenVPN и WireGuard спокойно работают на одном сервере: у них разные интерфейсы (<code>tun0</code> и <code>wg0</code>) и разные порты (1194/UDP и 51820/UDP). Проверьте три вещи:</p>
+<table>
+  <tr><th style="width:26%">Что</th><th>Риск и решение</th></tr>
+  <tr><td>VPN-подсеть</td><td><b>Главная ловушка:</b> wg-easy и многие инструкции по WireGuard используют <code>10.8.0.0/24</code> — ту же подсеть, что и OpenVPN по умолчанию. Скрипт это проверит и остановится. Устанавливайте с другой подсетью: <code>install --vpn-net 10.9.0.0</code>. Посмотреть занятые подсети: <code>ip -4 route</code>.</td></tr>
+  <tr><td>Порт</td><td>Конфликт только если WireGuard слушает 1194 (обычно 51820). Скрипт проверит порт; при необходимости укажите <code>--port 1195</code>.</td></tr>
+  <tr><td>Firewall</td><td>Скрипт добавляет свои правила iptables для <code>tun+</code> и не трогает правила WireGuard (<code>wg0</code>, PostUp/PostDown, Docker у wg-easy). При активном ufw он откроет порт OpenVPN и разрешит форвардинг.</td></tr>
+</table>
+<p>Если нужен доступ к LAN роутера и <b>из WireGuard-клиентов</b>, добавьте в WireGuard-клиенте в <code>AllowedIPs</code> подсеть <code>192.168.50.0/24</code>, а на сервере разрешите форвардинг между интерфейсами: <code>iptables -I FORWARD -i wg0 -o tun0 -j ACCEPT</code>.</p>
+
+<div class="box ok"><b>Ожидаемый результат</b><code>[+] Готово! OpenVPN-сервер запущен.</code> Проверка: <code>systemctl status openvpn-server@server</code> — статус <b>active (running)</b>.</div>
+
+<!-- ============================== STEP 3 ============================== -->
+<h2><span class="step">3</span>Подготовка RUT950</h2>
+<h3>3.1. Обновите прошивку</h3>
+<p>Веб-интерфейс роутера → <span class="path">System → Firmware</span> → обновите до последней версии RutOS. Новые прошивки содержат более свежий OpenVPN и удобную загрузку .ovpn-файлов.</p>
+
+<h3>3.2. Смените LAN-подсеть роутера</h3>
+<div class="box warn"><b>Это важно!</b>По умолчанию у RUT950 подсеть <code>192.168.1.0/24</code> — такая же, как у большинства домашних и офисных роутеров. Если ваш компьютер находится в такой же подсети, трафик к устройству пойдёт в вашу локальную сеть, а не в VPN, и доступа не будет.</div>
+<ol>
+  <li><span class="path">Network → LAN</span> (на старых прошивках <span class="path">Network → Interfaces → LAN → Edit</span>).</li>
+  <li>IP address: <code>192.168.50.1</code>, Netmask: <code>255.255.255.0</code>.</li>
+  <li>Проверьте диапазон DHCP — он должен быть в той же подсети (например <code>192.168.50.100–249</code>).</li>
+  <li><b>Save &amp; Apply</b>. Переподключитесь к роутеру по новому адресу <code>https://192.168.50.1</code>.</li>
+</ol>
+
+<h3>3.3. Проверьте устройство</h3>
+<ul>
+  <li>Узнайте IP устройства: <span class="path">Status → Network → LAN</span> (список DHCP-клиентов). Лучше закрепить за ним <b>статический адрес</b> (Static Leases).</li>
+  <li>У устройства <b>шлюз по умолчанию</b> должен быть <code>192.168.50.1</code> (при DHCP от роутера — так и есть).</li>
+</ul>
+
+<!-- ============================== STEP 4 ============================== -->
+<h2><span class="step">4</span>Создание сертификата для роутера</h2>
+<p>На сервере укажите имя роутера (латиница, цифры, <code>-</code>, <code>_</code>) и его LAN-подсеть:</p>
+<pre>sudo ./openvpn-rut.sh add-router rut950 192.168.50.0/24</pre>
+<p>Будет создана папка <code>/root/openvpn-clients/rut950/</code> и архив <code>/root/openvpn-clients/rut950.tar.gz</code>:</p>
+<table>
+  <tr><th style="width:26%">Файл</th><th>Назначение</th><th style="width:30%">Поле в RutOS</th></tr>
+  <tr><td><code>ca.crt</code></td><td>Сертификат центра сертификации</td><td>Certificate authority</td></tr>
+  <tr><td><code>rut950.crt</code></td><td>Сертификат роутера</td><td>Client certificate</td></tr>
+  <tr><td><code>rut950.key</code></td><td>Закрытый ключ роутера (секрет!)</td><td>Client key</td></tr>
+  <tr><td><code>ta.key</code></td><td>Ключ TLS-auth (HMAC)</td><td>HMAC authentication key</td></tr>
+  <tr><td><code>rut950.ovpn</code></td><td>Всё в одном файле</td><td>Upload OpenVPN config</td></tr>
+</table>
+
+<!-- ============================== STEP 5 ============================== -->
+<h2><span class="step">5</span>Перенос файлов на компьютер</h2>
+<p>На компьютере в PowerShell:</p>
+<pre>scp root@203.0.113.10:/root/openvpn-clients/rut950.tar.gz .
+tar -xzf rut950.tar.gz</pre>
+<p>Появится папка <code>rut950</code> с файлами. Альтернатива — программа <b>WinSCP</b>: подключитесь к серверу по SFTP и скачайте папку <code>/root/openvpn-clients/rut950</code>.</p>
+
+<!-- ============================== STEP 6 ============================== -->
+<h2><span class="step">6</span>Настройка OpenVPN-клиента на RUT950</h2>
+<ol>
+  <li>Откройте <span class="path">Services → VPN → OpenVPN</span>.</li>
+  <li>В строке создания новой конфигурации: имя <code>vps</code>, роль <b>Client</b> → <b>Add</b> → <b>Edit</b>.</li>
+</ol>
+
+<h3>Вариант А — загрузка файла .ovpn (RutOS 7.x)</h3>
+<p>Если в форме есть переключатель <b>Enable external services</b> / <b>Upload OpenVPN config file</b> — включите его и загрузите <code>rut950.ovpn</code>. Отметьте <b>Enable</b> и нажмите <b>Save &amp; Apply</b>. Переходите к шагу 7.</p>
+
+<h3>Вариант Б — ручное заполнение полей</h3>
+<table>
+  <tr><th style="width:40%">Поле</th><th>Значение</th></tr>
+  <tr><td>Enable</td><td>✔ включено</td></tr>
+  <tr><td>TUN/TAP</td><td>TUN (tunnel)</td></tr>
+  <tr><td>Protocol</td><td>UDP (или TCP, если задавали <code>--proto tcp</code>)</td></tr>
+  <tr><td>Port</td><td>1194 (или ваш <code>--port</code>)</td></tr>
+  <tr><td>LZO / Compression</td><td>None / No</td></tr>
+  <tr><td>Encryption</td><td>AES-256-CBC (на новых прошивках можно AES-256-GCM)</td></tr>
+  <tr><td>Authentication</td><td>TLS</td></tr>
+  <tr><td>TLS cipher</td><td>All</td></tr>
+  <tr><td>Remote host/IP address</td><td><code>203.0.113.10</code> (IP или домен сервера)</td></tr>
+  <tr><td>Resolve retry</td><td>infinite</td></tr>
+  <tr><td>Keep alive</td><td><code>10 60</code></td></tr>
+  <tr><td>Remote network IP / netmask</td><td>оставить пустыми</td></tr>
+  <tr><td>HMAC authentication algorithm</td><td>SHA256</td></tr>
+  <tr><td>Additional HMAC authentication</td><td><b>tls-auth</b> (Authentication only)</td></tr>
+  <tr><td>HMAC authentication key</td><td>загрузить <code>ta.key</code></td></tr>
+  <tr><td>HMAC key direction</td><td><b>1</b></td></tr>
+  <tr><td>Certificate authority</td><td>загрузить <code>ca.crt</code></td></tr>
+  <tr><td>Client certificate</td><td>загрузить <code>rut950.crt</code></td></tr>
+  <tr><td>Client key</td><td>загрузить <code>rut950.key</code></td></tr>
+  <tr><td>Extra options (если есть)</td><td><code>remote-cert-tls server</code></td></tr>
+</table>
+<p>Нажмите <b>Save &amp; Apply</b>. Через 10–30 секунд статус конфигурации должен стать <b>Connected</b> / <b>Running</b>.</p>
+<div class="box"><b>Названия полей</b>В разных версиях RutOS подписи немного отличаются (например «Extra HMAC authentication» вместо «Additional HMAC authentication»). Ориентируйтесь на смысл.</div>
+
+<!-- ============================== STEP 7 ============================== -->
+<h2><span class="step">7</span>Firewall на RUT950</h2>
+<p>RutOS помещает OpenVPN-интерфейс в отдельную зону firewall (обычно <code>vpn</code> или <code>openvpn</code>). Нужно разрешить трафик из VPN в LAN.</p>
+<ol>
+  <li><span class="path">Network → Firewall → General Settings</span> (на RutOS 7: <span class="path">Network → Firewall → Zones</span>).</li>
+  <li>У зоны <b>vpn/openvpn</b>: Input = <b>Accept</b>, Output = <b>Accept</b>, Forward = <b>Accept</b>.</li>
+  <li>В настройках зоны (Edit) → <b>Allow forward to destination zones</b>: отметьте <b>lan</b>.</li>
+  <li>У зоны <b>lan</b> → <b>Allow forward from source zones</b>: отметьте <b>vpn</b>.</li>
+  <li><b>Save &amp; Apply</b>.</li>
+</ol>
+<div class="box warn"><b>Если у устройства другой шлюз</b>Когда шлюз устройства — не RUT950 (или устройство отвечает только своей подсети), включите <b>Masquerading</b> для трафика из VPN в LAN (зона lan → Masquerading), либо пропишите на устройстве маршрут <code>10.8.0.0/24 через 192.168.50.1</code>.</div>
+
+<!-- ============================== STEP 8 ============================== -->
+<h2><span class="step">8</span>Подключение вашего компьютера</h2>
+<ol>
+  <li>На сервере создайте клиента: <pre>sudo ./openvpn-rut.sh add-client laptop</pre></li>
+  <li>Скачайте конфиг на компьютер: <pre>scp root@203.0.113.10:/root/openvpn-clients/laptop/laptop.ovpn .</pre></li>
+  <li>Установите <b>OpenVPN Connect</b> (openvpn.net/client) или <b>OpenVPN GUI</b> (Windows).</li>
+  <li>Импортируйте <code>laptop.ovpn</code> (Import Profile → File) и подключитесь.</li>
+</ol>
+<p>Для телефона создайте отдельного клиента (<code>add-client phone</code>) и импортируйте его .ovpn в приложение OpenVPN Connect (Android / iOS). <b>Не используйте один сертификат на нескольких устройствах одновременно.</b></p>
+
+<!-- ============================== STEP 9 ============================== -->
+<h2><span class="step">9</span>Проверка доступа к устройству</h2>
+<p>С подключённого к VPN компьютера:</p>
+<pre>ping 10.8.0.1          <span class="c"># сервер</span>
+ping 10.8.0.2          <span class="c"># роутер в VPN (адрес см. в команде list)</span>
+ping 192.168.50.1      <span class="c"># роутер в его LAN</span>
+ping 192.168.50.100    <span class="c"># устройство</span></pre>
+<p>Дальше используйте устройство как в локальной сети: веб-интерфейс (<code>http://192.168.50.100</code>), RDP, SSH, Modbus TCP, камеры и т.д. Веб-интерфейс самого роутера: <code>https://192.168.50.1</code>.</p>
+<p>Проверить маршрут в Windows: <code>route print 192.168.50.*</code> — должна быть строка с шлюзом <code>10.8.0.1</code>.</p>
+<div class="box ok"><b>Готово</b>Если устройство отвечает — настройка завершена. Роутер будет автоматически переподключаться к серверу после перезагрузки или смены сети.</div>
+
+<!-- ============================== MANAGEMENT ============================== -->
+<h2>Управление</h2>
+<table>
+  <tr><th style="width:47%">Команда (на сервере)</th><th>Действие</th></tr>
+  <tr><td><code>sudo ./openvpn-rut.sh list</code></td><td>Список клиентов и роутеров, кто сейчас online и с каким VPN-адресом</td></tr>
+  <tr><td><code>sudo ./openvpn-rut.sh add-client &lt;имя&gt;</code></td><td>Новый пользователь (ПК, телефон)</td></tr>
+  <tr><td><code>sudo ./openvpn-rut.sh add-router &lt;имя&gt; &lt;подсеть&gt;</code></td><td>Ещё один роутер (у каждого — своя уникальная LAN-подсеть)</td></tr>
+  <tr><td><code>sudo ./openvpn-rut.sh revoke &lt;имя&gt;</code></td><td>Отозвать доступ (сертификат попадает в CRL)</td></tr>
+  <tr><td><code>sudo ./openvpn-rut.sh uninstall</code></td><td>Полностью удалить сервер</td></tr>
+</table>
+<p><b>Несколько роутеров:</b> например <code>add-router obj1 192.168.51.0/24</code>, <code>add-router obj2 192.168.52.0/24</code>. Подсети не должны совпадать. Ваш компьютер получит маршруты ко всем объектам сразу (переподключите VPN-клиент после добавления роутера).</p>
+
+<h2>Два и более OpenVPN-подключения на RUT950</h2>
+<p>RutOS позволяет создать на одном роутере <b>несколько OpenVPN-конфигураций</b> одновременно: несколько клиентов, или клиент + сервер. Каждая получает свой интерфейс (<code>tun_c_vps</code>, <code>tun_c_vps2</code>…). Типичные сценарии:</p>
+<table>
+  <tr><th style="width:34%">Сценарий</th><th>Как сделать</th></tr>
+  <tr><td>Два разных сервера (например, свой VPS и сервер заказчика)</td><td>На каждом сервере — свой <code>add-router</code>. На RUT950 — две конфигурации Client (<code>vps1</code>, <code>vps2</code>) с файлами от соответствующих серверов.</td></tr>
+  <tr><td>Основной + резервный сервер</td><td>Две конфигурации Client к двум VPS; LAN-подсеть роутера указывается на обоих. Либо одна конфигурация с двумя строками <code>remote</code> в .ovpn — переключение произойдёт автоматически.</td></tr>
+  <tr><td>Клиент к VPS + собственный сервер на роутере</td><td>Возможно, если у SIM-карты белый IP. Вторая конфигурация с ролью Server.</td></tr>
+</table>
+<div class="box warn"><b>Ограничения</b>
+<ul style="margin:2px 0">
+  <li>VPN-подсети разных серверов не должны совпадать (например <code>10.8.0.0/24</code> и <code>10.9.0.0/24</code> — на втором сервере используйте <code>install --vpn-net 10.9.0.0</code>).</li>
+  <li>Не подключайтесь дважды к <b>одному</b> серверу с <b>одним</b> сертификатом — сервер будет разрывать одну из сессий. Для второго подключения к тому же серверу нужен отдельный сертификат.</li>
+  <li>Если конфигурации-серверы используют один порт — назначьте им разные порты.</li>
+  <li>У RUT950 слабый процессор: шифрование ограничивает скорость примерно до 5–15 Мбит/с суммарно на все туннели. Для телеметрии и веб-интерфейсов этого достаточно.</li>
+  <li>В firewall разрешите VPN → LAN для каждой новой зоны/интерфейса (шаг 7).</li>
+</ul></div>
+
+<!-- ============================== TROUBLESHOOTING ============================== -->
+<h2>Диагностика и частые проблемы</h2>
+<h3>Где смотреть логи</h3>
+<pre><span class="c"># сервер</span>
+systemctl status openvpn-server@server
+journalctl -u openvpn-server@server -f
+cat /var/log/openvpn-status.log
+
+<span class="c"># роутер: System → Administration → Troubleshoot → System log, или по SSH:</span>
+logread | grep -i openvpn</pre>
+
+<table>
+  <tr><th style="width:34%">Симптом</th><th>Причина и решение</th></tr>
+  <tr><td><code>TLS key negotiation failed to occur within 60 seconds</code></td><td>Пакеты не доходят до сервера: закрыт порт в облачном firewall хостера; не совпадает протокол/порт; оператор блокирует UDP — переустановите сервер с <code>--proto tcp --port 443</code>.</td></tr>
+  <tr><td><code>TLS Error: cannot locate HMAC in incoming packet</code></td><td>Не загружен <code>ta.key</code> или HMAC key direction ≠ <b>1</b>.</td></tr>
+  <tr><td><code>certificate verify failed</code></td><td>Загружен чужой <code>ca.crt</code> или сертификат отозван. Скачайте файлы заново.</td></tr>
+  <tr><td>Ошибки шифра / <code>cipher not supported</code></td><td>Выберите на роутере Encryption = AES-256-CBC; обновите прошивку.</td></tr>
+  <tr><td>Роутер Connected, но LAN недоступна</td><td>Firewall роутера (шаг 7); одинаковые подсети у вас и у роутера (шаг 3.2); VPN-клиент на ПК подключён до добавления роутера — переподключитесь.</td></tr>
+  <tr><td>Роутер пингуется, устройство — нет</td><td>Firewall на самом устройстве (Windows блокирует ping из «чужих» подсетей); у устройства другой шлюз — включите Masquerading.</td></tr>
+  <tr><td>Соединение периодически рвётся</td><td>Нормально для мобильной сети — клиент переподключается сам. Проверьте уровень сигнала (Status → Mobile).</td></tr>
+  <tr><td>«Серый» IP на SIM-карте</td><td>Не проблема: роутер сам инициирует подключение к серверу.</td></tr>
+</table>
+
+<h2>Безопасность</h2>
+<ul>
+  <li>Файлы <code>*.key</code> и <code>*.ovpn</code> — это пароли. Не пересылайте их открыто, не публикуйте и не храните в репозитории.</li>
+  <li>Каждому устройству и человеку — свой сертификат. При потере устройства или увольнении сотрудника — сразу <code>revoke</code>.</li>
+  <li>После настройки удалите архивы с компьютера или храните в зашифрованном виде.</li>
+  <li>На VPS отключите вход root по паролю (используйте SSH-ключи), регулярно делайте <code>apt upgrade</code>.</li>
+  <li>Смените стандартный пароль веб-интерфейса RUT950 и при необходимости ограничьте доступ к нему из WAN.</li>
+  <li>Сделайте резервную копию <code>/etc/openvpn/</code> — без неё при переустановке сервера придётся заново настраивать все роутеры.</li>
+</ul>
+
+<h2>Чек-лист</h2>
+<ul class="check">
+  <li>VPS с Ubuntu 22.04+/Debian 11+ и белым IP; порт UDP 1194 открыт у хостера</li>
+  <li><code>openvpn-rut.sh install</code> завершился без ошибок, служба active</li>
+  <li>Прошивка RUT950 обновлена</li>
+  <li>LAN-подсеть RUT950 изменена на уникальную (192.168.50.0/24)</li>
+  <li>IP устройства закреплён, шлюз — RUT950</li>
+  <li><code>add-router</code> выполнен с правильной подсетью, файлы скачаны</li>
+  <li>OpenVPN-клиент на RUT950 настроен, статус Connected</li>
+  <li>Firewall RUT950: зона VPN → LAN разрешена</li>
+  <li><code>add-client</code> для ПК, профиль импортирован, VPN подключён</li>
+  <li><code>ping 192.168.50.100</code> проходит</li>
+</ul>
+
+</body>
+</html>

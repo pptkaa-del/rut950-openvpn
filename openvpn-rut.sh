@@ -87,6 +87,17 @@ cmd_install() {
 
   [[ -f /etc/debian_version ]] || die "Поддерживаются только Debian/Ubuntu."
 
+  # Конфликты с уже работающими VPN (WireGuard/wg-easy часто тоже используют 10.8.0.0/24)
+  if ip -4 route show | awk '{print $1}' | grep -q "^${vpn_net%.*}\."; then
+    die "Подсеть $vpn_net/24 уже используется на сервере (WireGuard?): $(ip -4 route show | grep "^${vpn_net%.*}\." | head -1)
+    Укажите другую: $0 install --vpn-net 10.9.0.0"
+  fi
+  local ss_flag=-lnu; [[ $proto == tcp ]] && ss_flag=-lnt
+  if ss "$ss_flag" -H 2>/dev/null | awk '{print $4}' | grep -q ":$port\$"; then
+    die "Порт $port/$proto уже занят: $(ss -lnp | grep ":$port " | head -1)
+    Укажите другой: --port 1195"
+  fi
+
   info "Установка пакетов…"
   export DEBIAN_FRONTEND=noninteractive
   apt-get update -qq
