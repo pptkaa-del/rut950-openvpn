@@ -17,6 +17,8 @@ RUT240/RUT955/RUTX и других роутеров на RutOS).
           ping 192.168.50.100  ──────────────────────────────────────────────────────────▶
 ```
 
+📄 **Полная инструкция в PDF:** [docs/RUT950-OpenVPN-guide.pdf](docs/RUT950-OpenVPN-guide.pdf)
+
 ## Возможности
 
 - Установка одной командой: OpenVPN 2.5+, Easy-RSA PKI, systemd, iptables/ufw.
@@ -39,7 +41,7 @@ RUT240/RUT955/RUTX и других роутеров на RutOS).
 ### 1. Сервер
 
 ```bash
-git clone https://github.com/<ваш-логин>/rut950-openvpn.git
+git clone https://github.com/pptkaa-del/rut950-openvpn.git
 cd rut950-openvpn
 chmod +x openvpn-rut.sh
 sudo ./openvpn-rut.sh install
