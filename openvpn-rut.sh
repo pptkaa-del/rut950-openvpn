@@ -117,10 +117,10 @@ cmd_install() {
   cp -r /usr/share/easy-rsa/* "$EASYRSA_DIR/"
   (
     cd "$EASYRSA_DIR"
-    export EASYRSA_BATCH=1 EASYRSA_REQ_CN="rut-vpn-ca" EASYRSA_CERT_EXPIRE=3650 EASYRSA_CRL_DAYS=3650
+    export EASYRSA_BATCH=1 EASYRSA_CERT_EXPIRE=3650 EASYRSA_CRL_DAYS=3650
     ./easyrsa init-pki >/dev/null
-    ./easyrsa build-ca nopass >/dev/null 2>&1
-    ./easyrsa build-server-full server nopass >/dev/null 2>&1
+    EASYRSA_REQ_CN="rut-vpn-ca" ./easyrsa build-ca nopass >/dev/null
+    ./easyrsa build-server-full server nopass >/dev/null
     ./easyrsa gen-crl >/dev/null 2>&1
   )
 
